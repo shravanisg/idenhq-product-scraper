@@ -313,75 +313,83 @@ class ProductScraper:
 
 
     def _extract_product_data(self, page):
-            all_products = []
+        all_products = []
 
-            try:
-                print("Waiting for at least one product card to appear...")
-                page.wait_for_selector("div.rounded-lg.border.bg-card", timeout=7000)
+        try:
+            print("Waiting for at least one product card to appear...")
+            page.wait_for_selector("div.rounded-lg.border.bg-card", timeout=7000)
 
-                max_scroll_attempts = 100
-                scroll_attempts = 0
-                last_count = 0
+            max_scroll_attempts = 100
+            scroll_attempts = 0
+            last_count = 0
 
-                while scroll_attempts < max_scroll_attempts:
-                    product_cards = page.query_selector_all("div.rounded-lg.border.bg-card")
-                    current_count = len(product_cards)
-                    print(f"Loaded product cards: {current_count}")
-
-                    if current_count > last_count:
-                        last_count = current_count
-                        print(f"Scrolling to bottom... (attempt {scroll_attempts + 1})")
-                        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                        page.wait_for_timeout(1000)
-                    else:
-                        print("No new cards loaded, assuming all are visible.")
-                        break
-
-                    scroll_attempts += 1
-
-                print(f"Extracting data from {last_count} visible product cards...")
+            while scroll_attempts < max_scroll_attempts:
                 product_cards = page.query_selector_all("div.rounded-lg.border.bg-card")
+                current_count = len(product_cards)
+                print(f"Loaded product cards: {current_count}")
 
-                for card in product_cards:
-                    try:
-                        product = {}
-                        name_element = card.query_selector("h3")
-                        if name_element:
-                            product["name"] = name_element.inner_text().strip()
+                if current_count > last_count:
+                    last_count = current_count
+                    print(f"Scrolling to bottom... (attempt {scroll_attempts + 1})")
+                    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                    page.wait_for_timeout(1000)
+                else:
+                    print("No new cards loaded, assuming all are visible.")
+                    break
 
-                        raw_text = card.inner_text()
-                        lines = raw_text.split("\n")
+                scroll_attempts += 1
 
-                        for line in lines:
-                            if line.lower().startswith("id:"):
-                                product["id"] = line.replace("ID:", "").strip()
-                            elif line.lower().startswith("dimensions:"):
-                                product["dimensions"] = line.replace("Dimensions:", "").strip()
-                            elif line.lower().startswith("cost:"):
-                                product["cost"] = line.replace("Cost:", "").strip()
-                            elif line.lower().startswith("composition:"):
-                                product["composition"] = line.replace("Composition:", "").strip()
-                            elif line.lower().startswith("manufacturer:"):
-                                product["manufacturer"] = line.replace("Manufacturer:", "").strip()
-                            elif line.lower().startswith("inventory:"):
-                                product["inventory"] = line.replace("Inventory:", "").strip()
-                            elif line.lower().startswith("updated:"):
-                                product["updated"] = line.replace("Updated:", "").strip()
-                            elif line.lower().startswith("details:"):
-                                product["details"] = line.replace("Details:", "").strip()
+            print(f"Extracting data from {last_count} visible product cards...")
+            product_cards = page.query_selector_all("div.rounded-lg.border.bg-card")
 
-                        all_products.append(product)
+            for card in product_cards:
+                try:
+                    product = {}
 
-                    except Exception as e:
-                        print(f"Error extracting product card: {e}")
+                    # Product name
+                    name_element = card.query_selector("h3")
+                    if name_element:
+                        product["name"] = name_element.inner_text().strip()
 
-                print(f"Total products extracted: {len(all_products)}")
-                return all_products
+                    # Robust extraction by label → next sibling
+                    labels = [
+                        ("ID", "id"),
+                        ("Dimensions", "dimensions"),
+                        ("Cost", "cost"),
+                        ("Composition", "composition"),
+                        ("Manufacturer", "manufacturer"),
+                        ("Inventory", "inventory"),
+                        ("Details", "details"),
+                        ("Updated", "updated")
+                    ]
 
-            except Exception as e:
-                print(f"Error extracting products: {e}")
-                page.screenshot(path="extraction_error.png")
-                return all_products
+                    for label_text, key in labels:
+                        try:
+                            label_elem = card.query_selector(f"text={label_text}:")
+                            if label_elem:
+                                value = label_elem.evaluate("""
+                                    el => {
+                                        const next = el.nextElementSibling;
+                                        return next ? next.textContent.trim() : '';
+                                    }
+                                """)
+                                if value:
+                                    product[key] = value
+                        except Exception as e:
+                            print(f"Could not extract '{key}': {e}")
+
+                    all_products.append(product)
+
+                except Exception as e:
+                    print(f"Error extracting product card: {e}")
+
+            print(f"Total products extracted: {len(all_products)}")
+            return all_products
+
+        except Exception as e:
+            print(f"Error extracting products: {e}")
+            page.screenshot(path="extraction_error.png")
+            return all_products
 
 
     def _save_to_json(self, products):
