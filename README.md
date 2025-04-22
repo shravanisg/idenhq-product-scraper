@@ -14,14 +14,17 @@ This project is a **web scraper** built with [Playwright](https://playwright.dev
 🚀 Setup Instructions
 
 Clone the Repository
+
 git clone https://github.com/yourusername/idenhq-product-scraper.git
 cd idenhq-product-scraper
 
 Install dependencies
+
 pip install playwright
 playwright install
 
 Add credentials
+
 Create a credentials.json file in the project folder:
 
 {
@@ -30,8 +33,10 @@ Create a credentials.json file in the project folder:
 }
 
 Run the scraper
+
 python app.py
 
 Get results
+
 Scraped data will be saved to:
 product_data.json
