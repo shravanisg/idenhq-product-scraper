@@ -15,7 +15,7 @@ This project is a **web scraper** built with [Playwright](https://playwright.dev
 
 Clone the Repository
 
-git clone https://github.com/yourusername/idenhq-product-scraper.git
+git clone https://github.com/shravanisg/idenhq-product-scraper.git
 
 cd idenhq-product-scraper
 
